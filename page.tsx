@@ -116,6 +116,22 @@ export default function HomePage() {
           <p className="italic">
             Mostly it&apos;s a stick in a pot.
           </p>
+
+          
+          <div className="mt-8 text-center">
+  <p className="text-xs text-stone-400">
+    The idea kept growing.
+  </p>
+
+  <a
+    href="YOUR-EDABARI-ADDRESS"
+    className="mt-2 inline-block text-sm text-stone-600 transition-colors hover:text-stone-900"
+  >
+    Visit Edabari Studio →
+  </a>
+</div>
+
+          
         </footer>
       </div>
     </main>
