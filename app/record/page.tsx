@@ -299,11 +299,11 @@ const filePath =
                         : "scale-[1.02] opacity-0 blur-sm"
                     }`}
                   />
-                ) : (
+            ) : (
                   <div className="px-6 text-center">
 
                     <p className="legend-title text-2xl text-legend-ink">
-                      Choose a photograph
+                      Take a photograph
                     </p>
 
                     <p className="mt-2 text-sm text-legend-muted">
