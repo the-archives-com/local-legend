@@ -23,7 +23,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
 };
-};
+
 
 export default function RootLayout({
   children,
