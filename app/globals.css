@@ -1,0 +1,254 @@
+@import "tailwindcss";
+
+/*
+ * LOCAL LEGEND
+ *
+ * Field journal, observation, walking,
+ * quiet discovery.
+ *
+ * These colours intentionally live behind
+ * named variables so Local Legend can remain
+ * its own identity now while still fitting
+ * into a future Studio Nebari sister-brand
+ * system later.
+ */
+
+:root {
+  --legend-background: #f4f1e9;
+  --legend-surface: #fffdf8;
+
+  --legend-ink: #30352f;
+  --legend-muted: #70766d;
+
+  --legend-green: #536a52;
+  --legend-moss: #7d8c72;
+
+  --legend-earth: #8a7057;
+  --legend-sky: #81969d;
+
+  --legend-border: #dcd7cb;
+  --legend-paper: #ebe7dc;
+
+  --background: var(--legend-background);
+  --foreground: var(--legend-ink);
+}
+
+
+/*
+ * TAILWIND COLOUR TOKENS
+ */
+
+@theme inline {
+  --color-background:
+    var(--legend-background);
+
+  --color-foreground:
+    var(--legend-ink);
+
+  --color-legend-surface:
+    var(--legend-surface);
+
+  --color-legend-ink:
+    var(--legend-ink);
+
+  --color-legend-muted:
+    var(--legend-muted);
+
+  --color-legend-green:
+    var(--legend-green);
+
+  --color-legend-moss:
+    var(--legend-moss);
+
+  --color-legend-earth:
+    var(--legend-earth);
+
+  --color-legend-sky:
+    var(--legend-sky);
+
+  --color-legend-border:
+    var(--legend-border);
+
+  --color-legend-paper:
+    var(--legend-paper);
+
+  --font-sans:
+    var(--font-geist-sans);
+
+  --font-mono:
+    var(--font-geist-mono);
+}
+
+
+/*
+ * BASE
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background:
+    var(--legend-background);
+}
+
+body {
+  margin: 0;
+
+  background:
+    var(--legend-background);
+
+  color:
+    var(--legend-ink);
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+}
+
+
+/*
+ * TEXT SELECTION
+ */
+
+::selection {
+  background:
+    rgba(83, 106, 82, 0.18);
+
+  color:
+    var(--legend-ink);
+}
+
+
+/*
+ * LINKS
+ */
+
+a {
+  text-decoration:
+    none;
+}
+
+
+/*
+ * FIELD-JOURNAL TYPE TREATMENT
+ *
+ * We can replace this with a more distinctive
+ * typeface later without changing every page.
+ */
+
+.legend-title {
+  font-family:
+    Georgia,
+    "Times New Roman",
+    serif;
+
+  letter-spacing:
+    -0.025em;
+}
+
+.legend-label {
+  font-size:
+    0.6875rem;
+
+  font-weight:
+    600;
+
+  letter-spacing:
+    0.18em;
+
+  text-transform:
+    uppercase;
+}
+
+
+/*
+ * PAPER SURFACE
+ */
+
+.legend-paper {
+  background:
+    var(--legend-surface);
+
+  border:
+    1px solid
+    var(--legend-border);
+}
+
+
+/*
+ * SUBTLE FIELD NOTE RULE
+ */
+
+.legend-rule {
+  height:
+    1px;
+
+  background:
+    var(--legend-border);
+}
+
+
+/*
+ * QUIET SHADOW
+ */
+
+.legend-shadow {
+  box-shadow:
+    0 10px 30px
+    rgba(48, 53, 47, 0.07);
+}
+
+
+/*
+ * PAGE ENTRY
+ */
+
+@keyframes legendFadeIn {
+  from {
+    opacity: 0;
+    transform:
+      translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0);
+  }
+}
+
+.fade-in {
+  animation:
+    legendFadeIn
+    700ms
+    ease-out;
+}
+
+
+/*
+ * REDUCED MOTION
+ */
+
+@media (
+  prefers-reduced-motion:
+  reduce
+) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior:
+      auto !important;
+
+    animation-duration:
+      0.01ms !important;
+
+    animation-iteration-count:
+      1 !important;
+
+    transition-duration:
+      0.01ms !important;
+  }
+}
