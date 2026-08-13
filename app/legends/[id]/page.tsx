@@ -11,10 +11,6 @@ import {
 
 import { supabase } from "../../../lib/supabase";
 
-import {
-  useRouter,
-} from "next/navigation";
-
 type Legend = {
   id: number;
   created_at: string;
@@ -44,37 +40,11 @@ export default function LegendPage() {
       setLoading(true);
       setErrorMessage("");
 
-     const {
-  data: savedLegend,
-  error: databaseError,
-} = await supabase
-  .from("legends")
-  .insert({
-    title:
-      title.trim(),
-
-    reflection:
-      reflection.trim() ||
-      null,
-
-    image_url:
-      publicUrlData.publicUrl,
-
-    latitude,
-    longitude,
-  })
-  .select("id")
-  .single();
-
-if (databaseError) {
-  throw databaseError;
-}
-
-if (!savedLegend) {
-  throw new Error(
-    "The Legend was saved, but could not be reopened.",
-  );
-}
+      const {
+        data,
+        error,
+      } = await supabase
+        .from("legends")
         .select(
           "id, created_at, title, reflection, image_url, latitude, longitude, location_label",
         )
@@ -163,11 +133,6 @@ if (!savedLegend) {
   const hasLocation =
     legend.latitude !== null &&
     legend.longitude !== null;
-
-  /*
-   * Give the OpenStreetMap view a small area
-   * around the stored Legend coordinates.
-   */
 
   const mapDelta = 0.004;
 
@@ -267,86 +232,85 @@ if (!savedLegend) {
 
         </header>
 
-{/* PHOTO + PLACE */}
+        {/* PHOTO */}
 
-<section className="mx-auto max-w-4xl">
+        <section className="mx-auto max-w-4xl">
 
-  {/* PHOTO */}
+          <article className="legend-paper legend-shadow overflow-hidden rounded-3xl">
 
-  <article className="legend-paper legend-shadow overflow-hidden rounded-3xl">
+            <div className="bg-legend-paper">
 
-    <div className="bg-legend-paper">
+              <img
+                src={legend.image_url}
+                alt={legend.title}
+                className="h-auto w-full"
+              />
 
-      <img
-        src={legend.image_url}
-        alt={legend.title}
-        className="h-auto w-full"
-      />
+            </div>
 
-    </div>
+            <div className="border-t border-legend-border px-6 py-5">
 
-    <div className="border-t border-legend-border px-6 py-5">
-
-      <p className="legend-label text-legend-muted">
-        The Moment
-      </p>
-
-    </div>
-
-  </article>
-
-  {/* SMALL LOCATION MAP */}
-
-  {hasLocation && (
-    <div className="mt-6 flex justify-end">
-
-      <article className="w-full overflow-hidden rounded-2xl border border-legend-border bg-legend-surface sm:w-1/2 lg:w-1/3">
-
-        <div className="aspect-[4/3] bg-legend-paper">
-
-          <iframe
-            src={mapUrl}
-            title={`Map location for ${legend.title}`}
-            className="h-full w-full border-0"
-            loading="lazy"
-          />
-
-        </div>
-
-        <div className="flex items-center justify-between gap-4 px-5 py-4">
-
-          <div>
-
-            <p className="legend-label text-legend-muted">
-              The Place
-            </p>
-
-            {legend.location_label && (
-              <p className="mt-2 text-sm text-legend-ink">
-                {legend.location_label}
+              <p className="legend-label text-legend-muted">
+                The Moment
               </p>
-            )}
 
-          </div>
+            </div>
 
-          <a
-            href={fullMapUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="shrink-0 text-sm text-legend-green transition-colors hover:text-legend-earth"
-          >
-            Open map →
-          </a>
+          </article>
 
-        </div>
+          {/* SMALL LOCATION MAP */}
 
-      </article>
+          {hasLocation && (
+            <div className="mt-6 flex justify-end">
 
-    </div>
-  )}
+              <article className="w-full overflow-hidden rounded-2xl border border-legend-border bg-legend-surface sm:w-1/2 lg:w-1/3">
 
-</section>
+                <div className="aspect-[4/3] bg-legend-paper">
 
+                  <iframe
+                    src={mapUrl}
+                    title={`Map location for ${legend.title}`}
+                    className="h-full w-full border-0"
+                    loading="lazy"
+                  />
+
+                </div>
+
+                <div className="flex items-center justify-between gap-4 px-5 py-4">
+
+                  <div>
+
+                    <p className="legend-label text-legend-muted">
+                      The Place
+                    </p>
+
+                    {legend.location_label && (
+                      <p className="mt-2 text-sm text-legend-ink">
+                        {
+                          legend.location_label
+                        }
+                      </p>
+                    )}
+
+                  </div>
+
+                  <a
+                    href={fullMapUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 text-sm text-legend-green transition-colors hover:text-legend-earth"
+                  >
+                    Open map →
+                  </a>
+
+                </div>
+
+              </article>
+
+            </div>
+          )}
+
+        </section>
 
         {/* REFLECTION */}
 
