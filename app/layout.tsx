@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+ import type { Metadata } from "next";
 import {
   Geist,
   Geist_Mono,
@@ -18,10 +18,52 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Local Legend",
+  metadataBase: new URL(
+    "https://local-legend.com.au",
+  ),
+
+  title: {
+    default: "Local Legend",
+    template: "%s | Local Legend",
+  },
+
   applicationName: "Local Legend",
+
   description:
-    "Mindful exploration. Notice what is worth remembering.",
+    "A mindful local field journal for recording photographs, places and observations while exploring your neighbourhood.",
+
+  alternates: {
+    canonical: "/",
+  },
+
+  openGraph: {
+    type: "website",
+    url: "https://local-legend.com.au",
+    siteName: "Local Legend",
+    title: "Local Legend",
+    description:
+      "A mindful local field journal for recording photographs, places and observations while exploring your neighbourhood.",
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Local Legend",
+    description:
+      "A mindful local field journal for recording photographs, places and observations while exploring your neighbourhood.",
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+
   appleWebApp: {
     capable: true,
     title: "Local Legend",
