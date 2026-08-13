@@ -1,139 +1,147 @@
-import Image from "next/image";
-import Link from "next/link";
+"use client";
 
-export default function HomePage() {
+import Link from "next/link";
+import { useState } from "react";
+
+import { supabase } from "../../lib/supabase";
+
+export default function ResetPasswordPage() {
+  const [email, setEmail] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState("");
+
+  async function handleReset() {
+    if (!email.trim()) {
+      setMessage(
+        "Enter your email address.",
+      );
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    const {
+      error,
+    } = await supabase.auth
+      .resetPasswordForEmail(
+        email.trim(),
+        {
+          redirectTo:
+            `${window.location.origin}/update-password`,
+        },
+      );
+
+    if (error) {
+      setMessage(
+        error.message,
+      );
+
+      setLoading(false);
+      return;
+    }
+
+    setMessage(
+      "Check your email. We’ve sent you a link to choose a new password.",
+    );
+
+    setLoading(false);
+  }
+
   return (
-    <main className="min-h-screen bg-stone-50 px-6 py-16 fade-in">
-      <div className="mx-auto max-w-3xl space-y-8 text-center">
-        <header className="space-y-3">
-          <h1 className="text-5xl font-light tracking-wide sm:text-6xl">
+    <main className="min-h-screen bg-background px-6 py-16 text-foreground fade-in">
+
+      <div className="mx-auto max-w-md space-y-8">
+
+        <header className="space-y-4 text-center">
+
+          <p className="legend-label text-legend-earth">
             Local Legend
+          </p>
+
+          <h1 className="legend-title text-4xl font-medium text-legend-ink sm:text-5xl">
+            Find your way back.
           </h1>
 
-          <p className="text-stone-600">
-            Mindful exploration.
+          <p className="leading-7 text-legend-muted">
+            Enter the email attached to your
+            field journal and we&apos;ll send you
+            a password reset link.
           </p>
+
         </header>
 
+        <section className="legend-paper legend-shadow space-y-5 rounded-3xl p-8">
 
-<nav className="mx-auto grid w-full max-w-2xl gap-3 sm:grid-cols-3">
-  <Link
-    href="/"
-    aria-current="page"
-    className="
-      flex
-      min-h-12
-      items-center
-      justify-center
-      rounded-full
-      bg-stone-800
-      px-5
-      py-3
-      text-sm
-      text-stone-50
-      transition-all
-      duration-300
-      hover:scale-[1.02]
-      hover:bg-stone-700
-      active:scale-95
-    "
-  >
-    Home
-  </Link>
+          <div>
 
-  <Link
-    href="/gallery"
-    className="
-      flex
-      min-h-12
-      items-center
-      justify-center
-      rounded-full
-      border
-      border-stone-300
-      bg-white
-      px-5
-      py-3
-      text-sm
-      text-stone-700
-      transition-all
-      duration-300
-      hover:scale-[1.02]
-      hover:border-stone-400
-      hover:bg-stone-100
-      active:scale-95
-    "
-  >
-    Gallery
-  </Link>
+            <label
+              htmlFor="email"
+              className="legend-label text-legend-green"
+            >
+              Email
+            </label>
 
-  <Link
-    href="/record"
-    className="
-      flex
-      min-h-12
-      items-center
-      justify-center
-      rounded-full
-      border
-      border-stone-300
-      bg-white
-      px-5
-      py-3
-      text-sm
-      text-stone-700
-      transition-all
-      duration-300
-      hover:scale-[1.02]
-      hover:border-stone-400
-      hover:bg-stone-100
-      active:scale-95
-    "
-  >
-    Record a Legend
-  </Link>
-</nav>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) =>
+                setEmail(
+                  event.target.value,
+                )
+              }
+              onKeyDown={(event) => {
+                if (
+                  event.key ===
+                  "Enter"
+                ) {
+                  handleReset();
+                }
+              }}
+              className="mt-2 w-full rounded-xl border border-legend-border bg-background px-4 py-3 text-legend-ink outline-none focus:border-legend-moss"
+            />
 
+          </div>
 
-        <section className="mx-auto w-full max-w-2xl">
-          <Image
-            src="/legends/legend-00001.jpeg"
-            alt="Legend number 00001"
-            width={1200}
-            height={800}
-            priority
-            className="h-auto w-full rounded-3xl shadow-xl"
-          />
+          <button
+            type="button"
+            onClick={handleReset}
+            disabled={loading}
+            className="flex min-h-12 w-full items-center justify-center rounded-full bg-legend-green px-8 py-3 text-sm text-white transition-all hover:opacity-90 disabled:opacity-60"
+          >
+            {loading
+              ? "Sending..."
+              : "Send password link"}
+          </button>
+
+          {message && (
+            <p className="text-center text-sm leading-6 text-legend-muted">
+              {message}
+            </p>
+          )}
+
         </section>
 
-        <footer className="space-y-2 text-sm text-stone-500">
-          <p>
-            Built with care by
-            <br />
-            <strong>Studio Nebari</strong>
-          </p>
+        <div className="text-center">
 
-          <p className="italic">
-            Mostly it&apos;s a stick in a pot.
-          </p>
+          <Link
+            href="/login"
+            className="text-sm text-legend-muted transition-colors hover:text-legend-green"
+          >
+            ← Back to sign in
+          </Link>
 
-          
-          <div className="mt-8 text-center">
-  <p className="text-xs text-stone-400">
-    The idea kept growing.
-  </p>
+        </div>
 
-  <a
-    href="YOUR-EDABARI-ADDRESS"
-    className="mt-2 inline-block text-sm text-stone-600 transition-colors hover:text-stone-900"
-  >
-    Visit Nebari Studio →
-  </a>
-</div>
-
-          
-        </footer>
       </div>
+
     </main>
   );
 }

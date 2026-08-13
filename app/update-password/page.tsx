@@ -1,139 +1,274 @@
-import Image from "next/image";
-import Link from "next/link";
+"use client";
 
-export default function HomePage() {
+import Link from "next/link";
+import {
+  useEffect,
+  useState,
+} from "react";
+import {
+  useRouter,
+} from "next/navigation";
+
+import { supabase } from "../../lib/supabase";
+
+export default function UpdatePasswordPage() {
+  const router = useRouter();
+
+  const [password, setPassword] =
+    useState("");
+
+  const [confirmPassword, setConfirmPassword] =
+    useState("");
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [ready, setReady] =
+    useState(false);
+
+  const [message, setMessage] =
+    useState(
+      "Checking your recovery link...",
+    );
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function checkSession() {
+      const {
+        data: {
+          session,
+        },
+      } = await supabase.auth
+        .getSession();
+
+      if (
+        mounted &&
+        session
+      ) {
+        setReady(true);
+        setMessage("");
+      }
+    }
+
+    checkSession();
+
+    const {
+      data: listener,
+    } = supabase.auth
+      .onAuthStateChange(
+        (event, session) => {
+          if (
+            event ===
+              "PASSWORD_RECOVERY" ||
+            session
+          ) {
+            setReady(true);
+            setMessage("");
+          }
+        },
+      );
+
+    const timeout =
+      window.setTimeout(() => {
+        if (mounted) {
+          setMessage(
+            "This password link may have expired. Request a new one if needed.",
+          );
+        }
+      }, 5000);
+
+    return () => {
+      mounted = false;
+      window.clearTimeout(
+        timeout,
+      );
+
+      listener.subscription
+        .unsubscribe();
+    };
+  }, []);
+
+  async function handleUpdate() {
+    if (!ready) {
+      setMessage(
+        "Open this page using the link from your password email.",
+      );
+      return;
+    }
+
+    if (
+      password.length < 8
+    ) {
+      setMessage(
+        "Use at least 8 characters for your new password.",
+      );
+      return;
+    }
+
+    if (
+      password !==
+      confirmPassword
+    ) {
+      setMessage(
+        "Those passwords do not match.",
+      );
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    const {
+      error,
+    } = await supabase.auth
+      .updateUser({
+        password,
+      });
+
+    if (error) {
+      setMessage(
+        error.message,
+      );
+
+      setLoading(false);
+      return;
+    }
+
+    setMessage(
+      "Password updated. Opening your field journal...",
+    );
+
+    window.setTimeout(() => {
+      router.replace(
+        "/record",
+      );
+
+      router.refresh();
+    }, 700);
+  }
+
   return (
-    <main className="min-h-screen bg-stone-50 px-6 py-16 fade-in">
-      <div className="mx-auto max-w-3xl space-y-8 text-center">
-        <header className="space-y-3">
-          <h1 className="text-5xl font-light tracking-wide sm:text-6xl">
+    <main className="min-h-screen bg-background px-6 py-16 text-foreground fade-in">
+
+      <div className="mx-auto max-w-md space-y-8">
+
+        <header className="space-y-4 text-center">
+
+          <p className="legend-label text-legend-earth">
             Local Legend
+          </p>
+
+          <h1 className="legend-title text-4xl font-medium text-legend-ink sm:text-5xl">
+            Choose a new password.
           </h1>
 
-          <p className="text-stone-600">
-            Mindful exploration.
+          <p className="leading-7 text-legend-muted">
+            Set a password for your
+            Local Legend field journal.
           </p>
+
         </header>
 
+        <section className="legend-paper legend-shadow space-y-5 rounded-3xl p-8">
 
-<nav className="mx-auto grid w-full max-w-2xl gap-3 sm:grid-cols-3">
-  <Link
-    href="/"
-    aria-current="page"
-    className="
-      flex
-      min-h-12
-      items-center
-      justify-center
-      rounded-full
-      bg-stone-800
-      px-5
-      py-3
-      text-sm
-      text-stone-50
-      transition-all
-      duration-300
-      hover:scale-[1.02]
-      hover:bg-stone-700
-      active:scale-95
-    "
-  >
-    Home
-  </Link>
+          <div>
 
-  <Link
-    href="/gallery"
-    className="
-      flex
-      min-h-12
-      items-center
-      justify-center
-      rounded-full
-      border
-      border-stone-300
-      bg-white
-      px-5
-      py-3
-      text-sm
-      text-stone-700
-      transition-all
-      duration-300
-      hover:scale-[1.02]
-      hover:border-stone-400
-      hover:bg-stone-100
-      active:scale-95
-    "
-  >
-    Gallery
-  </Link>
+            <label
+              htmlFor="password"
+              className="legend-label text-legend-green"
+            >
+              New password
+            </label>
 
-  <Link
-    href="/record"
-    className="
-      flex
-      min-h-12
-      items-center
-      justify-center
-      rounded-full
-      border
-      border-stone-300
-      bg-white
-      px-5
-      py-3
-      text-sm
-      text-stone-700
-      transition-all
-      duration-300
-      hover:scale-[1.02]
-      hover:border-stone-400
-      hover:bg-stone-100
-      active:scale-95
-    "
-  >
-    Record a Legend
-  </Link>
-</nav>
+            <input
+              id="password"
+              type="password"
+              autoComplete="new-password"
+              value={password}
+              disabled={!ready}
+              onChange={(event) =>
+                setPassword(
+                  event.target.value,
+                )
+              }
+              className="mt-2 w-full rounded-xl border border-legend-border bg-background px-4 py-3 text-legend-ink outline-none focus:border-legend-moss disabled:opacity-50"
+            />
 
+          </div>
 
-        <section className="mx-auto w-full max-w-2xl">
-          <Image
-            src="/legends/legend-00001.jpeg"
-            alt="Legend number 00001"
-            width={1200}
-            height={800}
-            priority
-            className="h-auto w-full rounded-3xl shadow-xl"
-          />
+          <div>
+
+            <label
+              htmlFor="confirm-password"
+              className="legend-label text-legend-green"
+            >
+              Confirm password
+            </label>
+
+            <input
+              id="confirm-password"
+              type="password"
+              autoComplete="new-password"
+              value={
+                confirmPassword
+              }
+              disabled={!ready}
+              onChange={(event) =>
+                setConfirmPassword(
+                  event.target.value,
+                )
+              }
+              onKeyDown={(event) => {
+                if (
+                  event.key ===
+                  "Enter"
+                ) {
+                  handleUpdate();
+                }
+              }}
+              className="mt-2 w-full rounded-xl border border-legend-border bg-background px-4 py-3 text-legend-ink outline-none focus:border-legend-moss disabled:opacity-50"
+            />
+
+          </div>
+
+          <button
+            type="button"
+            onClick={
+              handleUpdate
+            }
+            disabled={
+              loading ||
+              !ready
+            }
+            className="flex min-h-12 w-full items-center justify-center rounded-full bg-legend-green px-8 py-3 text-sm text-white transition-all hover:opacity-90 disabled:opacity-60"
+          >
+            {loading
+              ? "Saving..."
+              : "Set new password"}
+          </button>
+
+          {message && (
+            <p className="text-center text-sm leading-6 text-legend-muted">
+              {message}
+            </p>
+          )}
+
         </section>
 
-        <footer className="space-y-2 text-sm text-stone-500">
-          <p>
-            Built with care by
-            <br />
-            <strong>Studio Nebari</strong>
-          </p>
+        <div className="text-center">
 
-          <p className="italic">
-            Mostly it&apos;s a stick in a pot.
-          </p>
+          <Link
+            href="/reset-password"
+            className="text-sm text-legend-muted transition-colors hover:text-legend-green"
+          >
+            Request another link
+          </Link>
 
-          
-          <div className="mt-8 text-center">
-  <p className="text-xs text-stone-400">
-    The idea kept growing.
-  </p>
+        </div>
 
-  <a
-    href="YOUR-EDABARI-ADDRESS"
-    className="mt-2 inline-block text-sm text-stone-600 transition-colors hover:text-stone-900"
-  >
-    Visit Edabari Studio →
-  </a>
-</div>
-
-          
-        </footer>
       </div>
+
     </main>
   );
 }

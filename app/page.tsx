@@ -18,6 +18,16 @@ type Legend = {
   longitude: number | null;
 };
 
+type WeeklyChallenge = {
+  out_week_start: string;
+  prompt_1_id: number;
+  prompt_1_word: string;
+  prompt_2_id: number;
+  prompt_2_word: string;
+  prompt_3_id: number;
+  prompt_3_word: string;
+};
+
 export default function HomePage() {
   const [latestLegend, setLatestLegend] =
     useState<Legend | null>(null);
@@ -30,6 +40,9 @@ export default function HomePage() {
 
   const [signedIn, setSignedIn] =
     useState(false);
+
+  const [challengeWords, setChallengeWords] =
+    useState<string[]>([]);
 
   /*
    * LOAD LATEST LEGEND
@@ -113,9 +126,58 @@ export default function HomePage() {
     };
   }, []);
 
+  /*
+   * LOAD THIS WEEK'S BAILEY CHALLENGE
+   */
+
+  useEffect(() => {
+    async function loadChallenge() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        setChallengeWords([]);
+        return;
+      }
+
+      const {
+        data,
+        error,
+      } = await supabase.rpc(
+        "get_or_create_current_challenge",
+      );
+
+      if (
+        error ||
+        !data ||
+        data.length === 0
+      ) {
+        console.error(
+          "Could not load Bailey's Challenge:",
+          error,
+        );
+
+        return;
+      }
+
+      const challenge =
+        data[0] as WeeklyChallenge;
+
+      setChallengeWords([
+        challenge.prompt_1_word,
+        challenge.prompt_2_word,
+        challenge.prompt_3_word,
+      ]);
+    }
+
+    loadChallenge();
+  }, []);
+
   async function handleSignOut() {
     await supabase.auth.signOut();
     setSignedIn(false);
+    setChallengeWords([]);
   }
 
   const recordedDate =
@@ -374,29 +436,41 @@ export default function HomePage() {
               Something to look for while you&apos;re out.
             </h2>
 
-            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium text-legend-green">
+            {challengeWords.length === 3 ? (
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium text-legend-green">
 
-              <span>
-                Green
-              </span>
+                {challengeWords.map(
+                  (
+                    word,
+                    index,
+                  ) => (
+                    <div
+                      key={word}
+                      className="flex items-center gap-4"
+                    >
 
-              <span className="text-legend-border">
-                ·
-              </span>
+                      <span className="capitalize">
+                        {word}
+                      </span>
 
-              <span>
-                Round
-              </span>
+                      {index <
+                        challengeWords.length -
+                          1 && (
+                        <span className="text-legend-border">
+                          ·
+                        </span>
+                      )}
 
-              <span className="text-legend-border">
-                ·
-              </span>
+                    </div>
+                  ),
+                )}
 
-              <span>
-                Checkers
-              </span>
-
-            </div>
+              </div>
+            ) : (
+              <p className="mt-6 text-sm italic text-legend-muted">
+                This week&apos;s finds are waiting.
+              </p>
+            )}
 
             <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-legend-muted">
               Three prompts. Three photographs.
