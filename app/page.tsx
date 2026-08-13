@@ -28,6 +28,13 @@ export default function HomePage() {
   const [errorMessage, setErrorMessage] =
     useState("");
 
+  const [signedIn, setSignedIn] =
+    useState(false);
+
+  /*
+   * LOAD LATEST LEGEND
+   */
+
   useEffect(() => {
     async function loadLatestLegend() {
       setLoading(true);
@@ -73,6 +80,43 @@ export default function HomePage() {
 
     loadLatestLegend();
   }, []);
+
+  /*
+   * AUTH STATE
+   */
+
+  useEffect(() => {
+    async function checkAuth() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      setSignedIn(
+        Boolean(user),
+      );
+    }
+
+    checkAuth();
+
+    const {
+      data: authListener,
+    } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSignedIn(
+          Boolean(session?.user),
+        );
+      },
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    setSignedIn(false);
+  }
 
   const recordedDate =
     latestLegend
@@ -186,37 +230,37 @@ export default function HomePage() {
 
           {!loading &&
             errorMessage && (
-            <div className="rounded-3xl border border-legend-border bg-legend-surface p-8 text-center">
+              <div className="rounded-3xl border border-legend-border bg-legend-surface p-8 text-center">
 
-              <p className="text-sm text-legend-muted">
-                {errorMessage}
-              </p>
+                <p className="text-sm text-legend-muted">
+                  {errorMessage}
+                </p>
 
-            </div>
-          )}
+              </div>
+            )}
 
           {!loading &&
             !errorMessage &&
             !latestLegend && (
-            <div className="rounded-3xl border border-dashed border-legend-border bg-legend-surface/70 p-10 text-center">
+              <div className="rounded-3xl border border-dashed border-legend-border bg-legend-surface/70 p-10 text-center">
 
-              <p className="legend-title text-2xl text-legend-ink">
-                The first Legend is still out there.
-              </p>
+                <p className="legend-title text-2xl text-legend-ink">
+                  The first Legend is still out there.
+                </p>
 
-              <p className="mt-3 text-sm leading-7 text-legend-muted">
-                Go for a walk. Notice something.
-              </p>
+                <p className="mt-3 text-sm leading-7 text-legend-muted">
+                  Go for a walk. Notice something.
+                </p>
 
-              <Link
-                href="/record"
-                className="mt-6 inline-block text-sm font-medium text-legend-green transition-colors hover:text-legend-earth"
-              >
-                Record the first Legend →
-              </Link>
+                <Link
+                  href="/record"
+                  className="mt-6 inline-block text-sm font-medium text-legend-green transition-colors hover:text-legend-earth"
+                >
+                  Record the first Legend →
+                </Link>
 
-            </div>
-          )}
+              </div>
+            )}
 
           {latestLegend && (
             <Link
@@ -292,6 +336,27 @@ export default function HomePage() {
 
             </Link>
           )}
+
+        </section>
+
+        {/* EXPLORE BY PLACE */}
+
+        <section className="mx-auto mt-10 max-w-xl text-center">
+
+          <p className="legend-label text-legend-moss">
+            Explore by Place
+          </p>
+
+          <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-legend-muted">
+            Wander the map and see what was noticed there.
+          </p>
+
+          <Link
+            href="/map"
+            className="mt-5 inline-flex items-center justify-center text-sm font-medium text-legend-green transition-colors hover:text-legend-earth"
+          >
+            Open the map →
+          </Link>
 
         </section>
 
@@ -389,6 +454,27 @@ export default function HomePage() {
               Studio Nebari
             </strong>
           </p>
+
+          <div className="mt-5">
+
+            {signedIn ? (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-xs text-legend-muted transition-colors hover:text-legend-green"
+              >
+                Sign out
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="text-xs text-legend-muted transition-colors hover:text-legend-green"
+              >
+                Sign in
+              </Link>
+            )}
+
+          </div>
 
         </footer>
 

@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   type ChangeEvent,
   useEffect,
@@ -16,7 +17,20 @@ type SaveStatus =
   | "success"
   | "error";
 
+type AuthStatus =
+  | "checking"
+  | "signed-in"
+  | "signed-out";
+
 export default function RecordPage() {
+  const router = useRouter();
+
+  const [authStatus, setAuthStatus] =
+    useState<AuthStatus>("checking");
+
+  const [userId, setUserId] =
+    useState<string | null>(null);
+
   const [photo, setPhoto] =
     useState<string | null>(null);
 
@@ -49,6 +63,34 @@ export default function RecordPage() {
   const [message, setMessage] =
     useState("");
 
+  /*
+   * CHECK LOGIN
+   */
+
+  useEffect(() => {
+    async function checkUser() {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+
+      if (error || !user) {
+        setUserId(null);
+        setAuthStatus("signed-out");
+        return;
+      }
+
+      setUserId(user.id);
+      setAuthStatus("signed-in");
+    }
+
+    checkUser();
+  }, []);
+
+  /*
+   * CLEAN UP PHOTO PREVIEW
+   */
+
   useEffect(() => {
     return () => {
       if (photo) {
@@ -56,6 +98,10 @@ export default function RecordPage() {
       }
     };
   }, [photo]);
+
+  /*
+   * PHOTO
+   */
 
   function handlePhotoSelect(
     event: ChangeEvent<HTMLInputElement>,
@@ -85,12 +131,18 @@ export default function RecordPage() {
     }, 200);
   }
 
+  /*
+   * LOCATION
+   */
+
   function handleUseLocation() {
     if (!navigator.geolocation) {
       setLocationStatus("error");
+
       setMessage(
         "Location is not available on this device.",
       );
+
       return;
     }
 
@@ -126,11 +178,24 @@ export default function RecordPage() {
     );
   }
 
+  /*
+   * SAVE LEGEND
+   */
+
   async function plantLegend() {
+    if (!userId) {
+      setMessage(
+        "You need to be signed in to record a Legend.",
+      );
+
+      return;
+    }
+
     if (!selectedFile) {
       setMessage(
-        "Choose a photograph first.",
+        "Take a photograph first.",
       );
+
       return;
     }
 
@@ -138,35 +203,63 @@ export default function RecordPage() {
       setMessage(
         "Give your Legend a title.",
       );
+
       return;
     }
 
     setSaveStatus("saving");
+
     setMessage(
       "Planting your Legend...",
     );
 
     try {
-const extension =
-  selectedFile.name
-    .split(".")
-    .pop()
-    ?.toLowerCase() || "jpg";
+      /*
+       * Check the user again immediately
+       * before writing anything.
+       */
 
-const filePath =
-  `uploads/${crypto.randomUUID()}.${extension}`;
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-      const { error: uploadError } =
-    await supabase.storage
-      .from("legends")
-      .upload(
-        filePath,
-        selectedFile,
-        {
-          cacheControl: "3600",
-          upsert: false,
-        },
-      );
+      if (
+        userError ||
+        !user
+      ) {
+        throw new Error(
+          "Your session has ended. Please sign in again.",
+        );
+      }
+
+      const extension =
+        selectedFile.name
+          .split(".")
+          .pop()
+          ?.toLowerCase() ||
+        "jpg";
+
+      /*
+       * Store each person's photos
+       * under their own user ID.
+       */
+
+      const filePath =
+        `${user.id}/${crypto.randomUUID()}.${extension}`;
+
+      const {
+        error: uploadError,
+      } = await supabase.storage
+        .from("legends")
+        .upload(
+          filePath,
+          selectedFile,
+          {
+            cacheControl: "3600",
+            upsert: false,
+          },
+        );
 
       if (uploadError) {
         throw uploadError;
@@ -176,13 +269,19 @@ const filePath =
         data: publicUrlData,
       } = supabase.storage
         .from("legends")
-        .getPublicUrl(filePath);
+        .getPublicUrl(
+          filePath,
+        );
 
       const {
+        data: savedLegend,
         error: databaseError,
       } = await supabase
         .from("legends")
         .insert({
+          user_id:
+            user.id,
+
           title:
             title.trim(),
 
@@ -195,9 +294,23 @@ const filePath =
 
           latitude,
           longitude,
-        });
+        })
+        .select("id")
+        .single();
 
       if (databaseError) {
+        /*
+         * If the database insert fails after
+         * the photo uploaded, remove the orphan
+         * from Storage.
+         */
+
+        await supabase.storage
+          .from("legends")
+          .remove([
+            filePath,
+          ]);
+
         throw databaseError;
       }
 
@@ -207,13 +320,16 @@ const filePath =
         "Your Legend has been recorded.",
       );
 
-      setTitle("");
-      setReflection("");
-      setSelectedFile(null);
-      setPhoto(null);
-      setLatitude(null);
-      setLongitude(null);
-      setLocationStatus("idle");
+      /*
+       * Take the user directly to
+       * the Legend they just created.
+       */
+
+      window.setTimeout(() => {
+        router.push(
+          `/legends/${savedLegend.id}`,
+        );
+      }, 500);
     } catch (error) {
       console.error(
         "Could not record Legend:",
@@ -231,6 +347,75 @@ const filePath =
         `Could not record this Legend: ${errorMessage}`,
       );
     }
+  }
+
+  /*
+   * AUTH CHECK SCREEN
+   */
+
+  if (
+    authStatus ===
+    "checking"
+  ) {
+    return (
+      <main className="min-h-screen bg-background px-6 py-16 text-foreground">
+
+        <p className="text-center italic text-legend-muted">
+          Opening your field journal...
+        </p>
+
+      </main>
+    );
+  }
+
+  /*
+   * SIGNED OUT
+   */
+
+  if (
+    authStatus ===
+    "signed-out"
+  ) {
+    return (
+      <main className="min-h-screen bg-background px-6 py-16 text-foreground fade-in">
+
+        <div className="mx-auto max-w-lg text-center">
+
+          <p className="legend-label text-legend-earth">
+            Local Legend
+          </p>
+
+          <h1 className="legend-title mt-5 text-4xl font-medium text-legend-ink sm:text-5xl">
+            Your field journal is private to you.
+          </h1>
+
+          <p className="mx-auto mt-5 max-w-md text-sm leading-7 text-legend-muted">
+            Sign in before recording a Legend.
+            Looking around remains open to everyone.
+          </p>
+
+          <Link
+            href="/login"
+            className="mt-8 inline-flex min-h-12 items-center justify-center rounded-full bg-legend-green px-8 py-3 text-sm text-white transition-all hover:opacity-90 active:scale-[0.98]"
+          >
+            Sign in to Local Legend
+          </Link>
+
+          <div className="mt-8">
+
+            <Link
+              href="/"
+              className="text-sm text-legend-muted transition-colors hover:text-legend-green"
+            >
+              ← Back to Local Legend
+            </Link>
+
+          </div>
+
+        </div>
+
+      </main>
+    );
   }
 
   return (
@@ -299,7 +484,7 @@ const filePath =
                         : "scale-[1.02] opacity-0 blur-sm"
                     }`}
                   />
-            ) : (
+                ) : (
                   <div className="px-6 text-center">
 
                     <p className="legend-title text-2xl text-legend-ink">
@@ -323,7 +508,9 @@ const filePath =
               accept="image/*"
               capture="environment"
               className="hidden"
-              onChange={handlePhotoSelect}
+              onChange={
+                handlePhotoSelect
+              }
             />
 
           </div>
@@ -375,7 +562,7 @@ const filePath =
                   )
                 }
                 className="mt-2 w-full resize-y rounded-xl border border-legend-border bg-background px-4 py-3 leading-7 text-legend-ink outline-none focus:border-legend-moss"
-               placeholder="When you see this again, what do you want to remember?"
+                placeholder="When you see this again, what do you want to remember?"
               />
 
             </div>
@@ -418,8 +605,13 @@ const filePath =
                 latitude !== null &&
                 longitude !== null && (
                 <p className="mt-3 text-xs text-legend-muted">
-                  {latitude.toFixed(5)},{" "}
-                  {longitude.toFixed(5)}
+                  {latitude.toFixed(
+                    5,
+                  )}
+                  ,{" "}
+                  {longitude.toFixed(
+                    5,
+                  )}
                 </p>
               )}
 
@@ -433,7 +625,9 @@ const filePath =
 
             <button
               type="button"
-              onClick={plantLegend}
+              onClick={
+                plantLegend
+              }
               disabled={
                 saveStatus ===
                 "saving"
