@@ -461,61 +461,88 @@ export default function RecordPage() {
 
         {/* PHOTO */}
 
-        <section className="legend-paper legend-shadow overflow-hidden rounded-3xl">
+<section className="legend-paper legend-shadow overflow-hidden rounded-3xl">
 
-          <div className="p-6">
+  <div className="p-6">
 
-            <label
-              htmlFor="photo-upload"
-              className="block cursor-pointer"
-            >
+    {/* PHOTO PREVIEW */}
 
-              <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-2xl border border-dashed border-legend-border bg-legend-paper/50">
+    <div className="relative flex min-h-[320px] items-center justify-center overflow-hidden rounded-2xl border border-dashed border-legend-border bg-legend-paper/50">
 
-                {photo ? (
-                  <Image
-                    src={photo}
-                    alt="Selected Legend"
-                    fill
-                    unoptimized
-                    className={`object-contain transition-all duration-700 ${
-                      loaded
-                        ? "scale-100 opacity-100 blur-0"
-                        : "scale-[1.02] opacity-0 blur-sm"
-                    }`}
-                  />
-                ) : (
-                  <div className="px-6 text-center">
+      {photo ? (
+        <Image
+          src={photo}
+          alt="Selected Legend"
+          fill
+          unoptimized
+          className={`object-contain transition-all duration-700 ${
+            loaded
+              ? "scale-100 opacity-100 blur-0"
+              : "scale-[1.02] opacity-0 blur-sm"
+          }`}
+        />
+      ) : (
+        <div className="px-6 text-center">
 
-                    <p className="legend-title text-2xl text-legend-ink">
-                      Take a photograph
-                    </p>
+          <p className="legend-title text-2xl text-legend-ink">
+            Add a photograph
+          </p>
 
-                    <p className="mt-2 text-sm text-legend-muted">
-                      Something you stopped to notice.
-                    </p>
+          <p className="mt-2 text-sm text-legend-muted">
+            Something you stopped to notice.
+          </p>
 
-                  </div>
-                )}
+        </div>
+      )}
 
-              </div>
+    </div>
 
-            </label>
+    {/* PHOTO OPTIONS */}
 
-            <input
-              id="photo-upload"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={
-                handlePhotoSelect
-              }
-            />
+    <div className="mt-5 space-y-3">
 
-          </div>
+      {/* CAMERA — PRIMARY */}
 
-          {/* DETAILS */}
+      <label
+        htmlFor="camera-upload"
+        className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full bg-legend-green px-8 py-3 text-sm text-white transition-all hover:opacity-90 active:scale-[0.98]"
+      >
+        {photo
+          ? "Take another photo"
+          : "Take Photo"}
+      </label>
+
+      <input
+        id="camera-upload"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handlePhotoSelect}
+      />
+
+      {/* PHOTO LIBRARY — SECONDARY */}
+
+      <label
+        htmlFor="library-upload"
+        className="flex min-h-12 w-full cursor-pointer items-center justify-center rounded-full border border-legend-border bg-legend-surface px-8 py-3 text-sm text-legend-ink transition-all hover:border-legend-moss hover:bg-background active:scale-[0.98]"
+      >
+        Choose from Library
+      </label>
+
+      <input
+        id="library-upload"
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={handlePhotoSelect}
+      />
+
+    </div>
+
+  </div>
+
+  {/* DETAILS */}
 
           <div className="space-y-6 border-t border-legend-border p-7">
 

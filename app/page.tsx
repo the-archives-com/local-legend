@@ -3,6 +3,7 @@
 import Link from "next/link";
 import {
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -28,9 +29,58 @@ type WeeklyChallenge = {
   prompt_3_word: string;
 };
 
+type UserLocation = {
+  latitude: number;
+  longitude: number;
+};
+
+type DiscoveryLegend = Legend & {
+  distanceKm: number | null;
+};
+
+/*
+ * Straight-line distance between two coordinates.
+ *
+ * This is deliberately labelled "away" rather than
+ * "walking distance", because we are not yet using
+ * pedestrian routing.
+ */
+function distanceBetween(
+  latitude1: number,
+  longitude1: number,
+  latitude2: number,
+  longitude2: number,
+) {
+  const earthRadiusKm = 6371;
+
+  const toRadians = (degrees: number) =>
+    (degrees * Math.PI) / 180;
+
+  const latitudeDifference =
+    toRadians(latitude2 - latitude1);
+
+  const longitudeDifference =
+    toRadians(longitude2 - longitude1);
+
+  const a =
+    Math.sin(latitudeDifference / 2) ** 2 +
+    Math.cos(toRadians(latitude1)) *
+      Math.cos(toRadians(latitude2)) *
+      Math.sin(longitudeDifference / 2) ** 2;
+
+  const c =
+    2 *
+    Math.atan2(
+      Math.sqrt(a),
+      Math.sqrt(1 - a),
+    );
+
+  return earthRadiusKm * c;
+}
+
 export default function HomePage() {
-  const [latestLegend, setLatestLegend] =
-    useState<Legend | null>(null);
+  const [legends, setLegends] =
+    useState<Legend[]>([]);
 
   const [loading, setLoading] =
     useState(true);
@@ -44,12 +94,23 @@ export default function HomePage() {
   const [challengeWords, setChallengeWords] =
     useState<string[]>([]);
 
+  const [userLocation, setUserLocation] =
+    useState<UserLocation | null>(null);
+
+  const [locationResolved, setLocationResolved] =
+    useState(false);
+
   /*
-   * LOAD LATEST LEGEND
+   * LOAD RECENT LEGENDS
+   *
+   * We load a modest pool rather than the entire
+   * archive. From this we can select nearby Legends
+   * when location is available, or simply show the
+   * newest ten when it is not.
    */
 
   useEffect(() => {
-    async function loadLatestLegend() {
+    async function loadLegends() {
       setLoading(true);
       setErrorMessage("");
 
@@ -67,32 +128,265 @@ export default function HomePage() {
             ascending: false,
           },
         )
-        .limit(1)
-        .maybeSingle();
+        .limit(100);
 
       if (error) {
         console.error(
-          "Could not load latest Legend:",
+          "Could not load Legends:",
           error,
         );
 
         setErrorMessage(
-          "The latest Legend could not be opened.",
+          "The nearby Legends could not be opened.",
         );
 
         setLoading(false);
         return;
       }
 
-      setLatestLegend(
-        data ?? null,
+      setLegends(
+        data ?? [],
       );
 
       setLoading(false);
     }
 
-    loadLatestLegend();
+    loadLegends();
   }, []);
+
+  /*
+   * FIND CURRENT LOCATION
+   *
+   * If location is unavailable or declined, nothing
+   * breaks. Local Legend simply falls back to the
+   * ten newest photographs.
+   */
+
+  useEffect(() => {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.geolocation
+    ) {
+      setLocationResolved(true);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setUserLocation({
+          latitude:
+            position.coords.latitude,
+          longitude:
+            position.coords.longitude,
+        });
+
+        setLocationResolved(true);
+      },
+
+      () => {
+        setUserLocation(null);
+        setLocationResolved(true);
+      },
+
+      {
+        enableHighAccuracy: false,
+        timeout: 7000,
+        maximumAge: 300000,
+      },
+    );
+  }, []);
+
+  /*
+   * BUILD THE DISCOVERY RAIL
+   *
+   * With location:
+   *   up to 2 around 1 km
+   *   up to 2 around 2 km
+   *   up to 2 around 3 km
+   *   up to 2 around 4 km
+   *   up to 2 around 5 km
+   *
+   * Without location:
+   *   newest 10 Legends.
+   */
+
+  const discoveryLegends =
+    useMemo<DiscoveryLegend[]>(() => {
+      if (!userLocation) {
+        return legends
+          .slice(0, 10)
+          .map((legend) => ({
+            ...legend,
+            distanceKm: null,
+          }));
+      }
+
+      const withDistance =
+        legends
+          .filter(
+            (
+              legend,
+            ): legend is Legend & {
+              latitude: number;
+              longitude: number;
+            } =>
+              legend.latitude !== null &&
+              legend.longitude !== null,
+          )
+          .map((legend) => ({
+            ...legend,
+            distanceKm:
+              distanceBetween(
+                userLocation.latitude,
+                userLocation.longitude,
+                legend.latitude,
+                legend.longitude,
+              ),
+          }));
+
+      const selected:
+        DiscoveryLegend[] = [];
+
+      const selectedIds =
+        new Set<number>();
+
+      /*
+       * Each kilometre band represents roughly
+       * that walking radius:
+       *
+       * 1 km = 0–1.5
+       * 2 km = 1.5–2.5
+       * etc.
+       */
+
+      for (
+        let kilometre = 1;
+        kilometre <= 5;
+        kilometre += 1
+      ) {
+        const minimum =
+          kilometre === 1
+            ? 0
+            : kilometre - 0.5;
+
+        const maximum =
+          kilometre + 0.5;
+
+        const candidates =
+          withDistance
+            .filter(
+              (legend) =>
+                legend.distanceKm >=
+                  minimum &&
+                legend.distanceKm <
+                  maximum &&
+                !selectedIds.has(
+                  legend.id,
+                ),
+            )
+            .sort(
+              (a, b) =>
+                Math.abs(
+                  a.distanceKm -
+                    kilometre,
+                ) -
+                Math.abs(
+                  b.distanceKm -
+                    kilometre,
+                ),
+            )
+            .slice(0, 2);
+
+        for (const legend of candidates) {
+          selected.push(legend);
+          selectedIds.add(
+            legend.id,
+          );
+        }
+      }
+
+      /*
+       * Early on, LL may not yet have two photographs
+       * in every distance band.
+       *
+       * Fill any empty places with the closest
+       * remaining Legends within about 5.5 km.
+       */
+
+      if (selected.length < 10) {
+        const remaining =
+          withDistance
+            .filter(
+              (legend) =>
+                legend.distanceKm <
+                  5.5 &&
+                !selectedIds.has(
+                  legend.id,
+                ),
+            )
+            .sort(
+              (a, b) =>
+                a.distanceKm -
+                b.distanceKm,
+            );
+
+        for (const legend of remaining) {
+          if (selected.length >= 10) {
+            break;
+          }
+
+          selected.push(legend);
+          selectedIds.add(
+            legend.id,
+          );
+        }
+      }
+
+      /*
+       * If there are very few geotagged Legends nearby,
+       * keep the rail useful by filling the remaining
+       * spaces with recent photographs.
+       */
+
+      if (selected.length < 10) {
+        for (const legend of legends) {
+          if (selected.length >= 10) {
+            break;
+          }
+
+          if (
+            selectedIds.has(
+              legend.id,
+            )
+          ) {
+            continue;
+          }
+
+          selected.push({
+            ...legend,
+            distanceKm:
+              legend.latitude !== null &&
+              legend.longitude !== null
+                ? distanceBetween(
+                    userLocation.latitude,
+                    userLocation.longitude,
+                    legend.latitude,
+                    legend.longitude,
+                  )
+                : null,
+          });
+
+          selectedIds.add(
+            legend.id,
+          );
+        }
+      }
+
+      return selected.slice(0, 10);
+    }, [
+      legends,
+      userLocation,
+    ]);
 
   /*
    * AUTH STATE
@@ -180,20 +474,6 @@ export default function HomePage() {
     setChallengeWords([]);
   }
 
-  const recordedDate =
-    latestLegend
-      ? new Date(
-          latestLegend.created_at,
-        ).toLocaleDateString(
-          "en-AU",
-          {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          },
-        )
-      : "";
-
   return (
     <main className="min-h-screen bg-background px-6 py-14 text-foreground fade-in">
 
@@ -256,7 +536,7 @@ export default function HomePage() {
 
         </div>
 
-        {/* LATEST LEGEND */}
+        {/* DISCOVER NEARBY */}
 
         <section className="mt-16">
 
@@ -265,17 +545,17 @@ export default function HomePage() {
             <div>
 
               <p className="legend-label text-legend-green">
-                Latest Legend
+                Nearby Legends
               </p>
 
               <h2 className="legend-title mt-2 text-3xl text-legend-ink">
-                Something worth keeping.
+                How far do you feel like walking?
               </h2>
 
             </div>
 
             <p className="hidden text-xs uppercase tracking-[0.14em] text-legend-muted sm:block">
-              Look closely
+              Swipe to wander
             </p>
 
           </div>
@@ -284,7 +564,7 @@ export default function HomePage() {
             <div className="rounded-3xl border border-legend-border bg-legend-surface p-10 text-center">
 
               <p className="text-sm italic text-legend-muted">
-                Finding the latest Legend...
+                Finding nearby Legends...
               </p>
 
             </div>
@@ -303,7 +583,8 @@ export default function HomePage() {
 
           {!loading &&
             !errorMessage &&
-            !latestLegend && (
+            discoveryLegends.length ===
+              0 && (
               <div className="rounded-3xl border border-dashed border-legend-border bg-legend-surface/70 p-10 text-center">
 
                 <p className="legend-title text-2xl text-legend-ink">
@@ -324,80 +605,149 @@ export default function HomePage() {
               </div>
             )}
 
-          {latestLegend && (
-            <Link
-              href={`/legends/${latestLegend.id}`}
-              className="group block"
-            >
+          {!loading &&
+            !errorMessage &&
+            discoveryLegends.length >
+              0 && (
+              <>
+                <div
+                  className="-mx-6 flex snap-x snap-mandatory gap-4 overflow-x-auto px-6 pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  aria-label="Nearby Legends"
+                >
+                  {discoveryLegends.map(
+                    (
+                      legend,
+                      index,
+                    ) => {
+                      const recordedDate =
+                        new Date(
+                          legend.created_at,
+                        ).toLocaleDateString(
+                          "en-AU",
+                          {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          },
+                        );
 
-              <article className="legend-paper legend-shadow overflow-hidden rounded-3xl transition-all duration-500 group-hover:-translate-y-1 group-hover:shadow-xl">
+                      return (
+                        <Link
+                          key={
+                            legend.id
+                          }
+                          href={`/legends/${legend.id}`}
+                          className="group w-[88%] shrink-0 snap-center sm:w-[72%]"
+                        >
+                          <article className="legend-paper legend-shadow h-full overflow-hidden rounded-3xl transition-all duration-500 group-hover:-translate-y-1">
 
-                {/* IMAGE */}
+                            <div className="aspect-[4/3] overflow-hidden bg-legend-paper">
 
-                <div className="overflow-hidden bg-legend-paper">
+                              <img
+                                src={
+                                  legend.image_url
+                                }
+                                alt={
+                                  legend.title
+                                }
+                                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.01]"
+                              />
 
-                  <img
-                    src={
-                      latestLegend.image_url
-                    }
-                    alt={
-                      latestLegend.title
-                    }
-                    className="h-auto w-full transition-transform duration-700 group-hover:scale-[1.01]"
+                            </div>
+
+                            <div className="border-t border-legend-border px-6 py-5">
+
+                              <div className="flex items-start justify-between gap-5">
+
+                                <div>
+
+                                  {legend.distanceKm !==
+                                    null && (
+                                    <p className="legend-label text-legend-green">
+                                      ≈{" "}
+                                      {legend.distanceKm <
+                                      1
+                                        ? legend.distanceKm.toFixed(
+                                            1,
+                                          )
+                                        : Math.round(
+                                            legend.distanceKm,
+                                          )}{" "}
+                                      km away
+                                    </p>
+                                  )}
+
+                                  {legend.distanceKm ===
+                                    null && (
+                                    <p className="legend-label text-legend-earth">
+                                      Recent Legend
+                                    </p>
+                                  )}
+
+                                  <h3 className="legend-title mt-2 text-2xl text-legend-ink">
+                                    {
+                                      legend.title
+                                    }
+                                  </h3>
+
+                                  <p className="mt-2 text-xs text-legend-muted">
+                                    {
+                                      recordedDate
+                                    }
+                                  </p>
+
+                                </div>
+
+                                <span className="shrink-0 text-xs text-legend-muted">
+                                  {index +
+                                    1}{" "}
+                                  /{" "}
+                                  {
+                                    discoveryLegends.length
+                                  }
+                                </span>
+
+                              </div>
+
+                              <p className="mt-5 text-sm text-legend-green">
+                                View Legend →
+                              </p>
+
+                            </div>
+
+                          </article>
+                        </Link>
+                      );
+                    },
+                  )}
+
+                  {/* Quiet space after the final card */}
+
+                  <div
+                    className="w-2 shrink-0"
+                    aria-hidden="true"
                   />
 
                 </div>
 
-                {/* CAPTION */}
+                <div className="mt-3 flex items-center justify-between text-xs text-legend-muted">
 
-                <div className="border-t border-legend-border px-7 py-6 sm:px-8">
+                  <p>
+                    {userLocation
+                      ? "Distances are approximate."
+                      : locationResolved
+                        ? "Showing the newest Legends."
+                        : "Finding your place..."}
+                  </p>
 
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-
-                    <div>
-
-                      <p className="legend-label text-legend-earth">
-                        Legend{" "}
-                        {String(
-                          latestLegend.id,
-                        ).padStart(
-                          5,
-                          "0",
-                        )}
-                      </p>
-
-                      <h3 className="legend-title mt-2 text-3xl text-legend-ink">
-                        {
-                          latestLegend.title
-                        }
-                      </h3>
-
-                      <p className="mt-2 text-xs text-legend-muted">
-                        {recordedDate}
-                      </p>
-
-                    </div>
-
-                    <span className="text-sm text-legend-green transition-transform duration-300 group-hover:translate-x-1">
-                      View Legend →
-                    </span>
-
-                  </div>
-
-                  {latestLegend.reflection && (
-                    <p className="mt-5 max-w-2xl text-sm leading-7 text-legend-muted">
-                      {
-                        latestLegend.reflection
-                      }
-                    </p>
-                  )}
+                  <p>
+                    {discoveryLegends.length}{" "}
+                    moments
+                  </p>
 
                 </div>
-
-              </article>
-
-            </Link>
-          )}
+              </>
+            )}
 
         </section>
 

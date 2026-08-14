@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   type ChangeEvent,
   useEffect,
@@ -12,13 +13,10 @@ import { supabase } from "../../lib/supabase";
 
 type WeeklyChallenge = {
   out_week_start: string;
-
   prompt_1_id: number;
   prompt_1_word: string;
-
   prompt_2_id: number;
   prompt_2_word: string;
-
   prompt_3_id: number;
   prompt_3_word: string;
 };
@@ -41,6 +39,8 @@ type ChallengeFind = {
 };
 
 export default function ChallengePage() {
+  const router = useRouter();
+
   const [userId, setUserId] =
     useState<string | null>(null);
 
@@ -99,10 +99,6 @@ export default function ChallengePage() {
 
       setUserId(user.id);
 
-      /*
-       * GET THIS WEEK'S THREE LOCKED WORDS
-       */
-
       const {
         data: challengeData,
         error: challengeError,
@@ -133,22 +129,16 @@ export default function ChallengePage() {
 
       const currentPrompts: Prompt[] = [
         {
-          id:
-            challenge.prompt_1_id,
-          word:
-            challenge.prompt_1_word,
+          id: challenge.prompt_1_id,
+          word: challenge.prompt_1_word,
         },
         {
-          id:
-            challenge.prompt_2_id,
-          word:
-            challenge.prompt_2_word,
+          id: challenge.prompt_2_id,
+          word: challenge.prompt_2_word,
         },
         {
-          id:
-            challenge.prompt_3_id,
-          word:
-            challenge.prompt_3_word,
+          id: challenge.prompt_3_id,
+          word: challenge.prompt_3_word,
         },
       ];
 
@@ -159,10 +149,6 @@ export default function ChallengePage() {
       setPrompts(
         currentPrompts,
       );
-
-      /*
-       * LOAD THIS USER'S FINDS
-       */
 
       const {
         data: findData,
@@ -324,10 +310,6 @@ export default function ChallengePage() {
       const filePath =
         `${user.id}/challenge/${weekStart}/${crypto.randomUUID()}.${extension}`;
 
-      /*
-       * UPLOAD PHOTO
-       */
-
       const {
         error: uploadError,
       } = await supabase.storage
@@ -336,21 +318,14 @@ export default function ChallengePage() {
           filePath,
           selectedFile,
           {
-            cacheControl:
-              "3600",
-
-            upsert:
-              false,
+            cacheControl: "3600",
+            upsert: false,
           },
         );
 
       if (uploadError) {
         throw uploadError;
       }
-
-      /*
-       * GET PUBLIC PHOTO URL
-       */
 
       const {
         data: publicUrlData,
@@ -359,10 +334,6 @@ export default function ChallengePage() {
         .getPublicUrl(
           filePath,
         );
-
-      /*
-       * SAVE FIND
-       */
 
       const {
         data: savedFind,
@@ -386,10 +357,6 @@ export default function ChallengePage() {
           "id, user_id, week_start, prompt_id, image_url, submitted, submitted_at, favourite, created_at",
         )
         .single();
-
-      /*
-       * REMOVE PHOTO IF DATABASE SAVE FAILS
-       */
 
       if (databaseError) {
         await supabase.storage
@@ -476,9 +443,7 @@ export default function ChallengePage() {
     } = await supabase
       .from("challenge_finds")
       .update({
-        submitted:
-          true,
-
+        submitted: true,
         submitted_at:
           submittedAt,
       })
@@ -510,10 +475,7 @@ export default function ChallengePage() {
         current.map(
           (find) => ({
             ...find,
-
-            submitted:
-              true,
-
+            submitted: true,
             submitted_at:
               submittedAt,
           }),
@@ -524,7 +486,14 @@ export default function ChallengePage() {
       "Your three finds have been shared.",
     );
 
-    setSubmitting(false);
+    window.setTimeout(
+      () => {
+        router.push(
+          "/challenge/gallery",
+        );
+      },
+      500,
+    );
   }
 
   /*
@@ -659,9 +628,12 @@ export default function ChallengePage() {
             Local Legend
           </Link>
 
-          <p className="legend-label text-legend-muted">
-            Bailey&apos;s Challenge
-          </p>
+          <Link
+            href="/challenge/gallery"
+            className="legend-label text-legend-muted transition-colors hover:text-legend-green"
+          >
+            This week&apos;s finds
+          </Link>
 
         </div>
 
@@ -699,11 +671,15 @@ export default function ChallengePage() {
                   prompt.id,
                 );
 
+              const isPreviewing =
+                selectedPrompt?.id ===
+                  prompt.id &&
+                Boolean(selectedFile) &&
+                Boolean(previewUrl);
+
               return (
                 <article
-                  key={
-                    prompt.id
-                  }
+                  key={prompt.id}
                   className="legend-paper legend-shadow overflow-hidden rounded-3xl"
                 >
 
@@ -732,10 +708,66 @@ export default function ChallengePage() {
                         </p>
 
                         <h2 className="legend-title mt-2 text-2xl capitalize text-legend-ink">
-                          {
-                            prompt.word
-                          }
+                          {prompt.word}
                         </h2>
+
+                      </div>
+                    </>
+                  ) : isPreviewing ? (
+                    <>
+                      {/* INLINE PHOTO PREVIEW */}
+
+                      <div className="relative aspect-square bg-legend-paper">
+
+                        <Image
+                          src={
+                            previewUrl!
+                          }
+                          alt={`Challenge photograph for ${prompt.word}`}
+                          fill
+                          unoptimized
+                          className="object-contain"
+                        />
+
+                      </div>
+
+                      <div className="space-y-4 p-6 text-center">
+
+                        <p className="legend-label text-legend-earth">
+                          You found
+                        </p>
+
+                        <h2 className="legend-title text-2xl capitalize text-legend-ink">
+                          {prompt.word}
+                        </h2>
+
+                        <button
+                          type="button"
+                          onClick={
+                            keepFind
+                          }
+                          disabled={
+                            saving
+                          }
+                          className="flex min-h-12 w-full items-center justify-center rounded-full bg-legend-green px-6 py-3 text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+                        >
+                          {saving
+                            ? "Keeping..."
+                            : "Keep this find"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={
+                            cancelPhoto
+                          }
+                          disabled={
+                            saving
+                          }
+                          className="text-sm text-legend-muted transition-colors hover:text-legend-green disabled:opacity-50"
+                        >
+                          Try another photograph
+                        </button>
 
                       </div>
                     </>
@@ -749,9 +781,7 @@ export default function ChallengePage() {
                         </p>
 
                         <h2 className="legend-title mt-3 text-3xl capitalize text-legend-ink">
-                          {
-                            prompt.word
-                          }
+                          {prompt.word}
                         </h2>
 
                         <p className="mt-4 text-sm leading-7 text-legend-muted">
@@ -760,29 +790,56 @@ export default function ChallengePage() {
 
                       </div>
 
-                      {/* CAMERA BUTTON */}
+                      <div className="mt-8 space-y-3">
 
-                      <label
-                        htmlFor={`challenge-${prompt.id}`}
-                        className="mt-8 flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-legend-border bg-legend-surface px-5 py-3 text-sm text-legend-ink transition-all hover:border-legend-moss hover:bg-legend-paper active:scale-[0.98]"
-                      >
-                        Take photograph
-                      </label>
+                        {/* CAMERA */}
 
-                      <input
-                        id={`challenge-${prompt.id}`}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                        onChange={
-                          (event) =>
-                            handlePhotoSelect(
-                              prompt,
-                              event,
-                            )
-                        }
-                      />
+                        <label
+                          htmlFor={`challenge-camera-${prompt.id}`}
+                          className="flex min-h-12 cursor-pointer items-center justify-center rounded-full bg-legend-green px-5 py-3 text-sm text-white transition-all hover:opacity-90 active:scale-[0.98]"
+                        >
+                          Take Photo
+                        </label>
+
+                        <input
+                          id={`challenge-camera-${prompt.id}`}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={
+                            (event) =>
+                              handlePhotoSelect(
+                                prompt,
+                                event,
+                              )
+                          }
+                        />
+
+                        {/* LIBRARY */}
+
+                        <label
+                          htmlFor={`challenge-library-${prompt.id}`}
+                          className="flex min-h-12 cursor-pointer items-center justify-center rounded-full border border-legend-border bg-legend-surface px-5 py-3 text-sm text-legend-ink transition-all hover:border-legend-moss hover:bg-legend-paper active:scale-[0.98]"
+                        >
+                          Choose from Library
+                        </label>
+
+                        <input
+                          id={`challenge-library-${prompt.id}`}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={
+                            (event) =>
+                              handlePhotoSelect(
+                                prompt,
+                                event,
+                              )
+                          }
+                        />
+
+                      </div>
 
                     </div>
                   )}
@@ -794,118 +851,74 @@ export default function ChallengePage() {
 
         </section>
 
-        {/* PHOTO PREVIEW */}
-
-        {selectedPrompt &&
-          selectedFile &&
-          previewUrl && (
-            <section className="mx-auto mt-10 max-w-2xl">
-
-              <div className="legend-paper legend-shadow overflow-hidden rounded-3xl">
-
-                <div className="relative aspect-[4/3] bg-legend-paper">
-
-                  <Image
-                    src={
-                      previewUrl
-                    }
-                    alt="Challenge photograph"
-                    fill
-                    unoptimized
-                    className="object-contain"
-                  />
-
-                </div>
-
-                <div className="space-y-5 border-t border-legend-border p-7">
-
-                  <div className="text-center">
-
-                    <p className="legend-label text-legend-earth">
-                      You found
-                    </p>
-
-                    <h2 className="legend-title mt-2 text-3xl capitalize text-legend-ink">
-                      {
-                        selectedPrompt.word
-                      }
-                    </h2>
-
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={
-                      keepFind
-                    }
-                    disabled={
-                      saving
-                    }
-                    className="flex min-h-12 w-full items-center justify-center rounded-full bg-legend-green px-8 py-3 text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-                  >
-                    {saving
-                      ? "Keeping..."
-                      : "Keep this find"}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={
-                      cancelPhoto
-                    }
-                    disabled={
-                      saving
-                    }
-                    className="w-full text-sm text-legend-muted transition-colors hover:text-legend-green disabled:opacity-50"
-                  >
-                    Try another photograph
-                  </button>
-
-                </div>
-
-              </div>
-
-            </section>
-          )}
-
-        {/* COMPLETED CHALLENGE */}
+        {/* CHALLENGE COMPLETE */}
 
         {challengeComplete && (
-          <section className="mx-auto mt-12 max-w-xl text-center">
+          <section className="mx-auto mt-12 max-w-2xl">
 
-            <p className="legend-label text-legend-green">
-              Challenge complete
-            </p>
+            <div className="rounded-3xl border border-legend-border bg-legend-surface px-8 py-9 text-center">
 
-            <h2 className="legend-title mt-3 text-3xl text-legend-ink">
-              Three things you might otherwise have walked past.
-            </h2>
-
-            <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-legend-muted">
-              If you&apos;d like, share your three
-              finds for this week&apos;s favourites.
-            </p>
-
-            {!alreadySubmitted ? (
-              <button
-                type="button"
-                onClick={
-                  submitFinds
-                }
-                disabled={
-                  submitting
-                }
-                className="mt-7 inline-flex min-h-12 items-center justify-center rounded-full bg-legend-green px-8 py-3 text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
-              >
-                {submitting
-                  ? "Sharing..."
-                  : "Share my three finds"}
-              </button>
-            ) : (
-              <p className="mt-7 text-sm font-medium text-legend-green">
-                ✓ Shared for this week
+              <p className="legend-label text-legend-green">
+                Challenge complete
               </p>
-            )}
+
+              <h2 className="legend-title mx-auto mt-4 max-w-xl text-3xl text-legend-ink">
+                Three things you might otherwise have walked past.
+              </h2>
+
+              <p className="mt-4 text-sm text-legend-muted">
+                ✓ 3 of 3 found
+              </p>
+
+              {!alreadySubmitted ? (
+                <>
+                  <p className="mx-auto mt-6 max-w-md text-sm leading-7 text-legend-muted">
+                    Share your three finds with this week&apos;s
+                    Bailey&apos;s Challenge board.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={
+                      submitFinds
+                    }
+                    disabled={
+                      submitting
+                    }
+                    className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-legend-green px-8 py-3 text-sm text-white transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
+                  >
+                    {submitting
+                      ? "Sharing..."
+                      : "Share my three finds"}
+                  </button>
+
+                  <div className="mt-5">
+
+                    <Link
+                      href="/challenge/gallery"
+                      className="text-sm text-legend-muted transition-colors hover:text-legend-green"
+                    >
+                      View this week&apos;s finds →
+                    </Link>
+
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="mt-6 text-sm text-legend-muted">
+                    Your three finds are now on this week&apos;s board.
+                  </p>
+
+                  <Link
+                    href="/challenge/gallery"
+                    className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full border border-legend-border bg-legend-paper px-8 py-3 text-sm text-legend-ink transition-all hover:border-legend-moss"
+                  >
+                    View this week&apos;s finds →
+                  </Link>
+                </>
+              )}
+
+            </div>
 
           </section>
         )}
